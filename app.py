@@ -214,7 +214,7 @@ if st.session_state.weather_data:
     border: 1px solid #444; 
 }}
 .custom-table tr:hover {{
-    background-color: lightblue !important;
+    background-color: lightgreen !important;
     color: black !important;
 }}
 .custom-table tr:hover td {{
@@ -280,12 +280,17 @@ if st.session_state.weather_data:
             marine_mask = (pd.to_datetime(marine_df['datetime']).dt.date >= export_from) & (pd.to_datetime(marine_df['datetime']).dt.date <= export_to)
             export_marine_df = marine_df.loc[marine_mask]
 
-        # Prepare Excel
+        # Prepare Excel (remove timezones as Excel doesn't support them)
+        export_df_excel = export_df.copy()
+        export_df_excel['datetime'] = pd.to_datetime(export_df_excel['datetime']).dt.tz_localize(None)
+        
         excel_buf = io.BytesIO()
         with pd.ExcelWriter(excel_buf, engine='xlsxwriter') as writer:
-            export_df.to_excel(writer, index=False, sheet_name='Weather')
+            export_df_excel.to_excel(writer, index=False, sheet_name='Weather')
             if export_marine_df is not None:
-                export_marine_df.to_excel(writer, index=False, sheet_name='Marine')
+                export_marine_df_excel = export_marine_df.copy()
+                export_marine_df_excel['datetime'] = pd.to_datetime(export_marine_df_excel['datetime']).dt.tz_localize(None)
+                export_marine_df_excel.to_excel(writer, index=False, sheet_name='Marine')
         
         # Prepare CSV
         csv_data = export_df.to_csv(index=False).encode('utf-8')
