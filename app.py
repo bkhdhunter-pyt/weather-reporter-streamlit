@@ -16,8 +16,21 @@ st.set_page_config(page_title="Weather Reporter", layout="wide")
 st.markdown("""
 <style>
 .stApp {
-    background: linear-gradient(135deg, #2A0845, #6441A5, #FF2E93);
+    background: linear-gradient(135deg, #2A0845, #1C0770);
     color: white; /* to ensure text remains readable on dark background */
+}
+
+/* Custom Button Styles */
+div.stButton > button {
+    background: linear-gradient(90deg, #0072ff, #00c6ff);
+    color: white;
+    border: 1px solid transparent;
+    transition: 0.3s;
+}
+div.stButton > button:hover {
+    background: transparent !important;
+    border: 1px solid #00c6ff !important;
+    color: white !important;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -109,15 +122,23 @@ if st.session_state.weather_data:
     wind_max = f"{max(wind_vals):.1f} knots" if wind_vals else "N/A"
     
     colA, colB, colC, colD = st.columns(4)
-    colA.metric("🌡️ Temperature", f"{temp_min} - {temp_max}")
-    colB.metric("💨 Wind Speed", f"{wind_min} - {wind_max}")
+    
+    colA.markdown("<div style='text-align: center; font-size: 70px; margin-bottom: -15px;'>🌡️</div>", unsafe_allow_html=True)
+    colA.metric("Temperature", f"{temp_min} - {temp_max}")
+    
+    colB.markdown("<div style='text-align: center; font-size: 70px; margin-bottom: -15px;'>💨</div>", unsafe_allow_html=True)
+    colB.metric("Wind Speed", f"{wind_min} - {wind_max}")
     if st.session_state.api_source == "Open-Meteo":
         rain_vals = [item.get('rain') for item in w_data if isinstance(item.get('rain'), (int, float))]
         uv_vals = [item.get('uv_index') for item in w_data if isinstance(item.get('uv_index'), (int, float))]
         rain_max = f"{max(rain_vals):.1f} mm/h" if rain_vals else "N/A"
         uv_max = f"{max(uv_vals):.1f}" if uv_vals else "N/A"
-        colC.metric("🌧️ Rain (Max)", rain_max)
-        colD.metric("☀️ UV Index (Max)", uv_max)
+        
+        colC.markdown("<div style='text-align: center; font-size: 70px; margin-bottom: -15px;'>🌧️</div>", unsafe_allow_html=True)
+        colC.metric("Rain (Max)", rain_max)
+        
+        colD.markdown("<div style='text-align: center; font-size: 70px; margin-bottom: -15px;'>☀️</div>", unsafe_allow_html=True)
+        colD.metric("UV Index (Max)", uv_max)
     
     current_time_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     st.markdown(f"**Location Info:** {l_info.get('name')} | **Timezone:** {l_info.get('timezone')} | **Sunrise:** {l_info.get('sunrise')} | **Sunset:** {l_info.get('sunset')} | **Current Time:** {current_time_str}")
