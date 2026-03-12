@@ -26,9 +26,17 @@ logic, config_data = get_weather_logic()
 
 # Top Section
 st.header("Search Location")
+
+# Read locations from config
+locations_dict = config_data.get("locations", {})
+loc_names = list(locations_dict.keys())
+
+default_loc = "Rong Doi Platform - Block 11.2"
+default_idx = loc_names.index(default_loc) if default_loc in loc_names else 0
+
 col1, col2, col3 = st.columns([2, 1, 1])
 with col1:
-    location = st.text_input("Enter city name or coordinates (lat, lon):", "Hanoi")
+    location = st.selectbox("Select Location:", loc_names, index=default_idx)
 with col2:
     data_source = st.radio("Data Source:", ["Open-Meteo", "OpenWeatherMap"], horizontal=True)
 with col3:
@@ -43,31 +51,15 @@ if "weather_data" not in st.session_state:
     st.session_state.api_source = None
     st.session_state.ui_location_name = None
 
-if fetch_btn and location:
+# Auto-fetch on first load if not in session state, or when fetch_btn is clicked
+if fetch_btn or not st.session_state.weather_data:
     with st.spinner("Fetching data..."):
-        # geocode
-        def resolve_location(loc_str, api_key=None, use_owm=False):
-            import requests
-            # Check if lat, lon
-            parts = loc_str.split(',')
-            if len(parts) == 2:
-                try:
-                    return float(parts[0].strip()), float(parts[1].strip())
-                except ValueError:
-                    pass
-            # Geocode
-            if use_owm and api_key:
-                resp = requests.get(f"http://api.openweathermap.org/geo/1.0/direct?q={loc_str}&limit=1&appid={api_key}")
-                if resp.status_code == 200 and resp.json():
-                    return resp.json()[0]['lat'], resp.json()[0]['lon']
-            # Fallback to open-meteo
-            resp = requests.get(f"https://geocoding-api.open-meteo.com/v1/search?name={loc_str}&count=1")
-            if resp.status_code == 200 and resp.json().get('results'):
-                return resp.json()['results'][0]['latitude'], resp.json()['results'][0]['longitude']
-            return None, None
-
-        lat, lon = resolve_location(location, logic.api_key, data_source == "OpenWeatherMap")
-        
+        # get coordinates from our loaded config dictionary
+        if location in locations_dict:
+            lat, lon = locations_dict[location]['coords']
+        else:
+            lat, lon = None, None
+            
         w_data, l_info, m_data = None, None, None
         if data_source == "OpenWeatherMap":
             if lat is not None and lon is not None:
@@ -162,27 +154,24 @@ if st.session_state.weather_data:
 
     # Bottom Section
     st.header("Charts")
-    chart_opts = ["Temperature & Humidity", "Wind Speed & Gust", "Rain & PoP"]
-    if st.session_state.api_source == "Open-Meteo" and st.session_state.marine_data:
-        chart_opts.append("Wave & Swell Height")
-        chart_opts.append("Wave & Swell Period")
-        
-    chart_sel = st.selectbox("Select Chart to View", chart_opts)
+
+    st.subheader("Temperature & Humidity")
+    st.line_chart(df.set_index('datetime')[['temperature', 'humidity']])
     
-    if chart_sel == "Temperature & Humidity":
-        st.line_chart(df.set_index('datetime')[['temperature', 'humidity']])
-    elif chart_sel == "Wind Speed & Gust":
-        st.line_chart(df.set_index('datetime')[['wind_speed', 'wind_gust']])
-    elif chart_sel == "Rain & PoP":
-        # Streamlit doesn't support dual axis directly via line_chart easily but we can just use matplotlib or simple line chart
-        if 'rain' in df.columns and 'pop' in df.columns:
-            st.line_chart(df.set_index('datetime')[['rain', 'pop']])
-        else:
-            st.line_chart(df.set_index('datetime')[['pop']])
-    elif chart_sel == "Wave & Swell Height":
+    st.subheader("Wind Speed & Gust")
+    st.line_chart(df.set_index('datetime')[['wind_speed', 'wind_gust']])
+    
+    st.subheader("Rain & PoP")
+    if 'rain' in df.columns and 'pop' in df.columns:
+        st.line_chart(df.set_index('datetime')[['rain', 'pop']])
+    else:
+        st.line_chart(df.set_index('datetime')[['pop']])
+        
+    if st.session_state.api_source == "Open-Meteo" and st.session_state.marine_data:
         df_marine = pd.DataFrame(st.session_state.marine_data)
+        st.subheader("Wave & Swell Height")
         st.line_chart(df_marine.set_index('datetime')[['wave_height', 'swell_wave_height']])
-    elif chart_sel == "Wave & Swell Period":
-        df_marine = pd.DataFrame(st.session_state.marine_data)
+        
+        st.subheader("Wave & Swell Period")
         st.line_chart(df_marine.set_index('datetime')[['wave_period', 'swell_wave_period']])
 
