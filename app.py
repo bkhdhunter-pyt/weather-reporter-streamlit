@@ -284,12 +284,22 @@ if st.session_state.weather_data:
         export_df_excel = export_df.copy()
         export_df_excel['datetime'] = pd.to_datetime(export_df_excel['datetime']).dt.tz_localize(None)
         
+        # Remove tzinfo from any other columns (like datetime_obj, sunrise, sunset)
+        for col in export_df_excel.columns:
+            if export_df_excel[col].apply(lambda x: hasattr(x, 'tzinfo') and x.tzinfo is not None).any():
+                export_df_excel[col] = export_df_excel[col].apply(lambda x: x.replace(tzinfo=None) if hasattr(x, 'tzinfo') and x.tzinfo is not None else x)
+        
         excel_buf = io.BytesIO()
         with pd.ExcelWriter(excel_buf, engine='xlsxwriter') as writer:
             export_df_excel.to_excel(writer, index=False, sheet_name='Weather')
             if export_marine_df is not None:
                 export_marine_df_excel = export_marine_df.copy()
                 export_marine_df_excel['datetime'] = pd.to_datetime(export_marine_df_excel['datetime']).dt.tz_localize(None)
+                
+                for col in export_marine_df_excel.columns:
+                    if export_marine_df_excel[col].apply(lambda x: hasattr(x, 'tzinfo') and x.tzinfo is not None).any():
+                        export_marine_df_excel[col] = export_marine_df_excel[col].apply(lambda x: x.replace(tzinfo=None) if hasattr(x, 'tzinfo') and x.tzinfo is not None else x)
+                
                 export_marine_df_excel.to_excel(writer, index=False, sheet_name='Marine')
         
         # Prepare CSV
