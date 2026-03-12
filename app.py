@@ -200,34 +200,32 @@ if st.session_state.weather_data:
     
     # Render table via HTML for complete styling control (font size + lightblue hover)
     html_table = df_display.to_html(classes="custom-table", index=False, justify='left', escape=False)
-    st.markdown(
-        f"""
-        <style>
-        .custom-table {{
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 16px; 
-            margin-bottom: 2rem;
-        }}
-        .custom-table th, .custom-table td {{
-            padding: 8px 12px;
-            border: 1px solid #444; 
-        }}
-        .custom-table tr:hover {{
-            background-color: lightblue !important;
-            color: black !important;
-        }}
-        .custom-table tr:hover td {{
-            color: black !important;
-        }}
-        </style>
-        
-        <div style="max-height: 400px; overflow-y: auto;">
-            {html_table}
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+    
+    html_template = f"""
+<style>
+.custom-table {{
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 16px; 
+    margin-bottom: 2rem;
+}}
+.custom-table th, .custom-table td {{
+    padding: 8px 12px;
+    border: 1px solid #444; 
+}}
+.custom-table tr:hover {{
+    background-color: lightblue !important;
+    color: black !important;
+}}
+.custom-table tr:hover td {{
+    color: black !important;
+}}
+</style>
+<div style="max-height: 400px; overflow-y: auto;">
+{html_table}
+</div>
+"""
+    st.markdown(html_template, unsafe_allow_html=True)
 
     st.markdown("---")
     st.header("Export Reports")
@@ -262,8 +260,9 @@ if st.session_state.weather_data:
     with colB:
         st.subheader("Historical Data Export")
         
-        min_date = df['datetime'].min().date()
-        max_date = df['datetime'].max().date()
+        df_datetime = pd.to_datetime(df['datetime'])
+        min_date = df_datetime.min().date()
+        max_date = df_datetime.max().date()
         
         export_col1, export_col2 = st.columns(2)
         with export_col1:
@@ -271,8 +270,8 @@ if st.session_state.weather_data:
         with export_col2:
             export_to = st.date_input("To (date)", min_value=min_date, max_value=max_date, value=max_date)
 
-        # Filter dataset
-        mask = (df['datetime'].dt.date >= export_from) & (df['datetime'].dt.date <= export_to)
+        # Filter dataset by converting string datetimes
+        mask = (df_datetime.dt.date >= export_from) & (df_datetime.dt.date <= export_to)
         export_df = df.loc[mask]
         
         export_marine_df = None
