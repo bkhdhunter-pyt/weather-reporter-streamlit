@@ -7,8 +7,7 @@ import datetime
 import math
 from dotenv import load_dotenv
 import os
-import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
+import plotly.graph_objects as go
 
 load_dotenv()
 
@@ -119,37 +118,59 @@ if st.session_state.weather_data:
     df = pd.DataFrame(w_data)
 
     def plot_custom_chart(df_plot, title, cols, colors):
-        fig, ax = plt.subplots(figsize=(10, 4))
-        
         # Ensure datetime is parsed
         if not pd.api.types.is_datetime64_any_dtype(df_plot.index):
             df_plot.index = pd.to_datetime(df_plot.index)
             
+        fig = go.Figure()
+        
         max_val = -float('inf')
         for col, color in zip(cols, colors):
             if col in df_plot.columns:
-                ax.plot(df_plot.index, df_plot[col], label=col, color=color, marker='o')
+                # Add line trace without markers, with hover info
+                fig.add_trace(go.Scatter(
+                    x=df_plot.index, 
+                    y=df_plot[col], 
+                    mode='lines', 
+                    name=col, 
+                    line=dict(color=color, width=2),
+                    hovertemplate='%{y:.1f}<extra></extra>'
+                ))
                 local_max = df_plot[col].max()
                 if local_max > max_val:
                     max_val = local_max
                     
         # Y-axis padding (max >= max plot point)
-        # Add 10% padding to max_val
-        y_min, _ = ax.get_ylim()
-        if max_val != -float('inf'):
-            ax.set_ylim(y_min, max_val * 1.1)
-
-        # X-axis formatting: show only 07:00 and 19:00
-        ax.xaxis.set_major_locator(mdates.HourLocator(byhour=[7, 19]))
-        ax.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d %H:%M'))
+        # Plotly handles auto-scaling well, but we can force range
+        y_max_range = max_val * 1.1 if max_val != -float('inf') else None
         
-        plt.setp(ax.get_xticklabels(), rotation=45, ha='right')
+        # X-axis formatting: show only 07:00 and 19:00, format: mm-dd HH:MM
+        tickvals = df_plot.index[df_plot.index.hour.isin([7, 19])]
+        ticktext = tickvals.strftime('%m-%d %H:%M')
         
-        ax.set_title(title)
-        ax.legend()
-        ax.grid(True, linestyle='--', alpha=0.6)
-        fig.tight_layout()
-        st.pyplot(fig)
+        fig.update_layout(
+            title=title,
+            xaxis=dict(
+                tickmode='array',
+                tickvals=tickvals,
+                ticktext=ticktext,
+                tickangle=-45,
+                showgrid=True,
+                gridcolor='rgba(128, 128, 128, 0.2)'
+            ),
+            yaxis=dict(
+                range=[None, y_max_range] if y_max_range is not None else None,
+                showgrid=True,
+                gridcolor='rgba(128, 128, 128, 0.2)'
+            ),
+            # Transparent background / dark gray overall matching streamlit themes
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)',
+            hovermode="x unified",
+            margin=dict(l=40, r=20, t=40, b=40)
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
 
     st.subheader("Temperature & Humidity")
     plot_custom_chart(df.set_index('datetime'), "Temperature & Humidity", ['temperature', 'humidity'], ['red', 'blue'])
