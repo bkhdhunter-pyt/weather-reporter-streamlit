@@ -158,14 +158,14 @@ if st.session_state.weather_data:
                 showgrid=True,
                 gridcolor='rgba(128, 128, 128, 0.2)',
                 tickfont=dict(size=13),
-                titlefont=dict(size=14)
+                title_font=dict(size=14)
             ),
             yaxis=dict(
                 range=[None, y_max_range] if y_max_range is not None else None,
                 showgrid=True,
                 gridcolor='rgba(128, 128, 128, 0.2)',
                 tickfont=dict(size=13),
-                titlefont=dict(size=14)
+                title_font=dict(size=14)
             ),
             legend=dict(
                 font=dict(size=13)
