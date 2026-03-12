@@ -13,6 +13,15 @@ load_dotenv()
 
 st.set_page_config(page_title="Weather Reporter", layout="wide")
 
+st.markdown("""
+<style>
+.stApp {
+    background: linear-gradient(135deg, #2A0845, #6441A5, #FF2E93);
+    color: white; /* to ensure text remains readable on dark background */
+}
+</style>
+""", unsafe_allow_html=True)
+
 st.title("Weather Reporter")
 
 @st.cache_resource
@@ -100,17 +109,18 @@ if st.session_state.weather_data:
     wind_max = f"{max(wind_vals):.1f} knots" if wind_vals else "N/A"
     
     colA, colB, colC, colD = st.columns(4)
-    colA.metric("Temperature", f"{temp_min} - {temp_max}")
-    colB.metric("Wind Speed", f"{wind_min} - {wind_max}")
+    colA.metric("🌡️ Temperature", f"{temp_min} - {temp_max}")
+    colB.metric("💨 Wind Speed", f"{wind_min} - {wind_max}")
     if st.session_state.api_source == "Open-Meteo":
         rain_vals = [item.get('rain') for item in w_data if isinstance(item.get('rain'), (int, float))]
         uv_vals = [item.get('uv_index') for item in w_data if isinstance(item.get('uv_index'), (int, float))]
         rain_max = f"{max(rain_vals):.1f} mm/h" if rain_vals else "N/A"
         uv_max = f"{max(uv_vals):.1f}" if uv_vals else "N/A"
-        colC.metric("Rain (Max)", rain_max)
-        colD.metric("UV Index (Max)", uv_max)
+        colC.metric("🌧️ Rain (Max)", rain_max)
+        colD.metric("☀️ UV Index (Max)", uv_max)
     
-    st.markdown(f"**Location Info:** {l_info.get('name')} | **Timezone:** {l_info.get('timezone')} | **Sunrise:** {l_info.get('sunrise')} | **Sunset:** {l_info.get('sunset')}")
+    current_time_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    st.markdown(f"**Location Info:** {l_info.get('name')} | **Timezone:** {l_info.get('timezone')} | **Sunrise:** {l_info.get('sunrise')} | **Sunset:** {l_info.get('sunset')} | **Current Time:** {current_time_str}")
 
     # Sidebar Table
     # Bottom Section
@@ -180,7 +190,7 @@ if st.session_state.weather_data:
         st.plotly_chart(fig, use_container_width=True)
 
     st.subheader("Temperature & Humidity")
-    plot_custom_chart(df.set_index('datetime'), "Temperature & Humidity", ['temperature', 'humidity'], ['orange', 'teal'])
+    plot_custom_chart(df.set_index('datetime'), "Temperature & Humidity", ['temperature', 'humidity'], ['#EB4C4C', 'white'])
     
     st.subheader("Wind Speed & Gust")
     plot_custom_chart(df.set_index('datetime'), "Wind Speed & Gust", ['wind_speed', 'wind_gust'], ['green', 'orange'])
@@ -188,6 +198,14 @@ if st.session_state.weather_data:
     st.subheader("Rain & PoP")
     rain_cols = ['rain', 'pop'] if 'rain' in df.columns else ['pop']
     plot_custom_chart(df.set_index('datetime'), "Rain & PoP", rain_cols, ['blue', 'purple'])
+    
+    if 'cloud_cover' in df.columns:
+        st.subheader("Cloud Cover")
+        plot_custom_chart(df.set_index('datetime'), "Cloud Cover", ['cloud_cover'], ['lightgray'])
+        
+    if 'uv_index' in df.columns:
+        st.subheader("UV Index")
+        plot_custom_chart(df.set_index('datetime'), "UV Index", ['uv_index'], ['gold'])
         
     if st.session_state.api_source == "Open-Meteo" and st.session_state.marine_data:
         df_marine = pd.DataFrame(st.session_state.marine_data)
