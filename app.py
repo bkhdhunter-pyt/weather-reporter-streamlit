@@ -149,19 +149,26 @@ if st.session_state.weather_data:
         ticktext = tickvals.strftime('%m-%d %H:%M')
         
         fig.update_layout(
-            title=title,
+            title=dict(text=title, font=dict(size=18)),
             xaxis=dict(
                 tickmode='array',
                 tickvals=tickvals,
                 ticktext=ticktext,
                 tickangle=-45,
                 showgrid=True,
-                gridcolor='rgba(128, 128, 128, 0.2)'
+                gridcolor='rgba(128, 128, 128, 0.2)',
+                tickfont=dict(size=13),
+                titlefont=dict(size=14)
             ),
             yaxis=dict(
                 range=[None, y_max_range] if y_max_range is not None else None,
                 showgrid=True,
-                gridcolor='rgba(128, 128, 128, 0.2)'
+                gridcolor='rgba(128, 128, 128, 0.2)',
+                tickfont=dict(size=13),
+                titlefont=dict(size=14)
+            ),
+            legend=dict(
+                font=dict(size=13)
             ),
             # Transparent background / dark gray overall matching streamlit themes
             plot_bgcolor='rgba(0,0,0,0)',
@@ -173,14 +180,14 @@ if st.session_state.weather_data:
         st.plotly_chart(fig, use_container_width=True)
 
     st.subheader("Temperature & Humidity")
-    plot_custom_chart(df.set_index('datetime'), "Temperature & Humidity", ['temperature', 'humidity'], ['red', 'blue'])
+    plot_custom_chart(df.set_index('datetime'), "Temperature & Humidity", ['temperature', 'humidity'], ['orange', 'teal'])
     
     st.subheader("Wind Speed & Gust")
     plot_custom_chart(df.set_index('datetime'), "Wind Speed & Gust", ['wind_speed', 'wind_gust'], ['green', 'orange'])
     
     st.subheader("Rain & PoP")
     rain_cols = ['rain', 'pop'] if 'rain' in df.columns else ['pop']
-    plot_custom_chart(df.set_index('datetime'), "Rain & PoP", rain_cols, ['purple', 'cyan'])
+    plot_custom_chart(df.set_index('datetime'), "Rain & PoP", rain_cols, ['blue', 'purple'])
         
     if st.session_state.api_source == "Open-Meteo" and st.session_state.marine_data:
         df_marine = pd.DataFrame(st.session_state.marine_data)
@@ -261,14 +268,15 @@ if st.session_state.weather_data:
         st.subheader("Historical Data Export")
         
         df_datetime = pd.to_datetime(df['datetime'])
-        min_date = df_datetime.min().date()
-        max_date = df_datetime.max().date()
+        import datetime
+        current_date = datetime.date.today()
+        default_from = current_date - datetime.timedelta(days=7)
         
         export_col1, export_col2 = st.columns(2)
         with export_col1:
-            export_from = st.date_input("From (date)", min_value=min_date, max_value=max_date, value=min_date)
+            export_from = st.date_input("From (date)", max_value=current_date, value=default_from)
         with export_col2:
-            export_to = st.date_input("To (date)", min_value=min_date, max_value=max_date, value=max_date)
+            export_to = st.date_input("To (date)", max_value=current_date, value=current_date)
 
         # Filter dataset by converting string datetimes
         mask = (df_datetime.dt.date >= export_from) & (df_datetime.dt.date <= export_to)
