@@ -7,6 +7,8 @@ import datetime
 import math
 from dotenv import load_dotenv
 import os
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 
 load_dotenv()
 
@@ -112,66 +114,121 @@ if st.session_state.weather_data:
     st.markdown(f"**Location Info:** {l_info.get('name')} | **Timezone:** {l_info.get('timezone')} | **Sunrise:** {l_info.get('sunrise')} | **Sunset:** {l_info.get('sunset')}")
 
     # Sidebar Table
-    st.sidebar.header("Data Table")
-    df = pd.DataFrame(w_data)
-    # filter columns and reorder
+    # Bottom Section
+    st.header("Charts")
+
+    def plot_custom_chart(df_plot, title, cols, colors):
+        fig, ax = plt.subplots(figsize=(10, 4))
+        
+        # Ensure datetime is parsed
+        if not pd.api.types.is_datetime64_any_dtype(df_plot.index):
+            df_plot.index = pd.to_datetime(df_plot.index)
+            
+        max_val = -float('inf')
+        for col, color in zip(cols, colors):
+            if col in df_plot.columns:
+                ax.plot(df_plot.index, df_plot[col], label=col, color=color, marker='o')
+                local_max = df_plot[col].max()
+                if local_max > max_val:
+                    max_val = local_max
+                    
+        # Y-axis padding (max >= max plot point)
+        # Add 10% padding to max_val
+        y_min, _ = ax.get_ylim()
+        if max_val != -float('inf'):
+            ax.set_ylim(y_min, max_val * 1.1)
+
+        # X-axis formatting: show only 07:00 and 19:00
+        ax.xaxis.set_major_locator(mdates.HourLocator(byhour=[7, 19]))
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%m-%d %H:%M'))
+        
+        plt.setp(ax.get_xticklabels(), rotation=45, ha='right')
+        
+        ax.set_title(title)
+        ax.legend()
+        ax.grid(True, linestyle='--', alpha=0.6)
+        fig.tight_layout()
+        st.pyplot(fig)
+
+    st.subheader("Temperature & Humidity")
+    plot_custom_chart(df.set_index('datetime'), "Temperature & Humidity", ['temperature', 'humidity'], ['red', 'blue'])
+    
+    st.subheader("Wind Speed & Gust")
+    plot_custom_chart(df.set_index('datetime'), "Wind Speed & Gust", ['wind_speed', 'wind_gust'], ['green', 'orange'])
+    
+    st.subheader("Rain & PoP")
+    rain_cols = ['rain', 'pop'] if 'rain' in df.columns else ['pop']
+    plot_custom_chart(df.set_index('datetime'), "Rain & PoP", rain_cols, ['purple', 'cyan'])
+        
+    if st.session_state.api_source == "Open-Meteo" and st.session_state.marine_data:
+        df_marine = pd.DataFrame(st.session_state.marine_data)
+        st.subheader("Wave & Swell Height")
+        plot_custom_chart(df_marine.set_index('datetime'), "Wave Height", ['wave_height', 'swell_wave_height'], ['dodgerblue', 'mediumblue'])
+        
+        st.subheader("Wave & Swell Period")
+        plot_custom_chart(df_marine.set_index('datetime'), "Wave Period", ['wave_period', 'swell_wave_period'], ['purple', 'darkviolet'])
+
+    st.markdown("---")
+    st.header("Data Table")
     if st.session_state.api_source == "Open-Meteo":
         cols = ['datetime', 'description', 'temperature', 'humidity', 'wind_speed', 'wind_gust', 'wind_direction', 'rain', 'pop', 'uv_index']
     else:
         cols = ['datetime', 'description', 'temperature', 'humidity', 'wind_speed', 'wind_gust', 'wind_direction', 'pop']
     df_display = df[[c for c in cols if c in df.columns]]
-    st.sidebar.dataframe(df_display, use_container_width=True)
-    
-    # PDF Export
-    st.sidebar.header("Export")
-    pdf_lang = st.sidebar.radio("PDF Language", ["English", "Vietnamese"])
-    if st.sidebar.button("Generate PDF Report"):
-        with st.spinner("Generating PDF..."):
-            cur_dir = os.getcwd()
-            # The logic expects to save to standard path then we could read it
-            # Or we can just let it save and then provide download link
-            if pdf_lang == "Vietnamese":
-                logic.generate_vietnamese_pdf_report(
-                    st.session_state.lat, st.session_state.lon, w_data, l_info, 
-                    st.session_state.ui_location_name, st.session_state.api_source, st.session_state.marine_data
-                )
-            else:
-                logic.generate_pdf_report(
-                    st.session_state.lat, st.session_state.lon, w_data, l_info, 
-                    st.session_state.ui_location_name, st.session_state.api_source, st.session_state.marine_data
-                )
-            # Find the latest generated pdf
-            import glob
-            pdfs = glob.glob("Weather_Report_*.pdf")
-            if pdfs:
-                latest_pdf = max(pdfs, key=os.path.getctime)
-                with open(latest_pdf, "rb") as f:
-                    pdf_bytes = f.read()
-                st.sidebar.download_button("Download PDF", data=pdf_bytes, file_name=latest_pdf, mime="application/pdf")
-                st.sidebar.success("PDF generated!")
-            else:
-                st.sidebar.error("Failed to generate PDF.")
+    st.dataframe(df_display, use_container_width=True)
 
-    # Bottom Section
-    st.header("Charts")
-
-    st.subheader("Temperature & Humidity")
-    st.line_chart(df.set_index('datetime')[['temperature', 'humidity']])
+    st.markdown("---")
+    st.header("Export Reports")
+    colA, colB = st.columns(2)
     
-    st.subheader("Wind Speed & Gust")
-    st.line_chart(df.set_index('datetime')[['wind_speed', 'wind_gust']])
-    
-    st.subheader("Rain & PoP")
-    if 'rain' in df.columns and 'pop' in df.columns:
-        st.line_chart(df.set_index('datetime')[['rain', 'pop']])
-    else:
-        st.line_chart(df.set_index('datetime')[['pop']])
-        
-    if st.session_state.api_source == "Open-Meteo" and st.session_state.marine_data:
-        df_marine = pd.DataFrame(st.session_state.marine_data)
-        st.subheader("Wave & Swell Height")
-        st.line_chart(df_marine.set_index('datetime')[['wave_height', 'swell_wave_height']])
-        
-        st.subheader("Wave & Swell Period")
-        st.line_chart(df_marine.set_index('datetime')[['wave_period', 'swell_wave_period']])
+    with colA:
+        st.subheader("PDF Report")
+        pdf_lang = st.radio("PDF Language", ["English", "Vietnamese"], horizontal=True)
+        if st.button("Generate PDF Report"):
+            with st.spinner("Generating PDF..."):
+                if pdf_lang == "Vietnamese":
+                    logic.generate_vietnamese_pdf_report(
+                        st.session_state.lat, st.session_state.lon, w_data, l_info, 
+                        st.session_state.ui_location_name, st.session_state.api_source, st.session_state.marine_data
+                    )
+                else:
+                    logic.generate_pdf_report(
+                        st.session_state.lat, st.session_state.lon, w_data, l_info, 
+                        st.session_state.ui_location_name, st.session_state.api_source, st.session_state.marine_data
+                    )
+                import glob
+                pdfs = glob.glob("Weather_Report_*.pdf")
+                if pdfs:
+                    latest_pdf = max(pdfs, key=os.path.getctime)
+                    with open(latest_pdf, "rb") as f:
+                        pdf_bytes = f.read()
+                    st.download_button("Download Current PDF", data=pdf_bytes, file_name=latest_pdf, mime="application/pdf")
+                    st.success("PDF generated!")
+                else:
+                    st.error("Failed to generate PDF.")
+                    
+    with colB:
+        st.subheader("Historical Data Export")
+        if st.button("Export Excel / CSV"):
+            with st.spinner("Preparing export files..."):
+                excel_buf = io.BytesIO()
+                with pd.ExcelWriter(excel_buf, engine='xlsxwriter') as writer:
+                    df.to_excel(writer, index=False, sheet_name='Weather')
+                    if st.session_state.marine_data:
+                        pd.DataFrame(st.session_state.marine_data).to_excel(writer, index=False, sheet_name='Marine')
+                
+                st.download_button(
+                    label="Download Excel (.xlsx)",
+                    data=excel_buf.getvalue(),
+                    file_name=f"Historical_Data_{st.session_state.ui_location_name}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
+                
+                csv_data = df.to_csv(index=False).encode('utf-8')
+                st.download_button(
+                    label="Download CSV",
+                    data=csv_data,
+                    file_name=f"Historical_Data_{st.session_state.ui_location_name}.csv",
+                    mime="text/csv"
+                )
 
