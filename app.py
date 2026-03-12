@@ -188,7 +188,7 @@ if st.session_state.weather_data:
         plot_custom_chart(df_marine.set_index('datetime'), "Wave Height", ['wave_height', 'swell_wave_height'], ['dodgerblue', 'mediumblue'])
         
         st.subheader("Wave & Swell Period")
-        plot_custom_chart(df_marine.set_index('datetime'), "Wave Period", ['wave_period', 'swell_wave_period'], ['purple', 'darkviolet'])
+        plot_custom_chart(df_marine.set_index('datetime'), "Wave Period", ['wave_period', 'swell_wave_period'], ['magenta', 'gold'])
 
     st.markdown("---")
     st.header("Data Table")
@@ -196,8 +196,38 @@ if st.session_state.weather_data:
         cols = ['datetime', 'description', 'temperature', 'humidity', 'wind_speed', 'wind_gust', 'wind_direction', 'rain', 'pop', 'uv_index']
     else:
         cols = ['datetime', 'description', 'temperature', 'humidity', 'wind_speed', 'wind_gust', 'wind_direction', 'pop']
-    df_display = df[[c for c in cols if c in df.columns]]
-    st.dataframe(df_display, use_container_width=True)
+    df_display = df[[c for c in cols if c in df.columns]].copy()
+    
+    # Render table via HTML for complete styling control (font size + lightblue hover)
+    html_table = df_display.to_html(classes="custom-table", index=False, justify='left', escape=False)
+    st.markdown(
+        f"""
+        <style>
+        .custom-table {{
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 16px; 
+            margin-bottom: 2rem;
+        }}
+        .custom-table th, .custom-table td {{
+            padding: 8px 12px;
+            border: 1px solid #444; 
+        }}
+        .custom-table tr:hover {{
+            background-color: lightblue !important;
+            color: black !important;
+        }}
+        .custom-table tr:hover td {{
+            color: black !important;
+        }}
+        </style>
+        
+        <div style="max-height: 400px; overflow-y: auto;">
+            {html_table}
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
     st.markdown("---")
     st.header("Export Reports")
@@ -231,26 +261,49 @@ if st.session_state.weather_data:
                     
     with colB:
         st.subheader("Historical Data Export")
-        if st.button("Export Excel / CSV"):
-            with st.spinner("Preparing export files..."):
-                excel_buf = io.BytesIO()
-                with pd.ExcelWriter(excel_buf, engine='xlsxwriter') as writer:
-                    df.to_excel(writer, index=False, sheet_name='Weather')
-                    if st.session_state.marine_data:
-                        pd.DataFrame(st.session_state.marine_data).to_excel(writer, index=False, sheet_name='Marine')
-                
-                st.download_button(
-                    label="Download Excel (.xlsx)",
-                    data=excel_buf.getvalue(),
-                    file_name=f"Historical_Data_{st.session_state.ui_location_name}.xlsx",
-                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                )
-                
-                csv_data = df.to_csv(index=False).encode('utf-8')
-                st.download_button(
-                    label="Download CSV",
-                    data=csv_data,
-                    file_name=f"Historical_Data_{st.session_state.ui_location_name}.csv",
-                    mime="text/csv"
-                )
+        
+        min_date = df['datetime'].min().date()
+        max_date = df['datetime'].max().date()
+        
+        export_col1, export_col2 = st.columns(2)
+        with export_col1:
+            export_from = st.date_input("From (date)", min_value=min_date, max_value=max_date, value=min_date)
+        with export_col2:
+            export_to = st.date_input("To (date)", min_value=min_date, max_value=max_date, value=max_date)
+
+        # Filter dataset
+        mask = (df['datetime'].dt.date >= export_from) & (df['datetime'].dt.date <= export_to)
+        export_df = df.loc[mask]
+        
+        export_marine_df = None
+        if st.session_state.marine_data:
+            marine_df = pd.DataFrame(st.session_state.marine_data)
+            marine_mask = (pd.to_datetime(marine_df['datetime']).dt.date >= export_from) & (pd.to_datetime(marine_df['datetime']).dt.date <= export_to)
+            export_marine_df = marine_df.loc[marine_mask]
+
+        # Prepare Excel
+        excel_buf = io.BytesIO()
+        with pd.ExcelWriter(excel_buf, engine='xlsxwriter') as writer:
+            export_df.to_excel(writer, index=False, sheet_name='Weather')
+            if export_marine_df is not None:
+                export_marine_df.to_excel(writer, index=False, sheet_name='Marine')
+        
+        # Prepare CSV
+        csv_data = export_df.to_csv(index=False).encode('utf-8')
+        
+        btn_col1, btn_col2 = st.columns(2)
+        with btn_col1:
+            st.download_button(
+                label="Download Excel (.xlsx)",
+                data=excel_buf.getvalue(),
+                file_name=f"Historical_Data_{st.session_state.ui_location_name}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+        with btn_col2:
+            st.download_button(
+                label="Download CSV",
+                data=csv_data,
+                file_name=f"Historical_Data_{st.session_state.ui_location_name}.csv",
+                mime="text/csv"
+            )
 
