@@ -116,6 +116,7 @@ if st.session_state.weather_data:
     # Sidebar Table
     # Bottom Section
     st.header("Charts")
+    df = pd.DataFrame(w_data)
 
     def plot_custom_chart(df_plot, title, cols, colors):
         fig, ax = plt.subplots(figsize=(10, 4))
