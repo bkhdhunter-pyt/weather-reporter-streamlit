@@ -156,34 +156,46 @@ if st.session_state.weather_data:
     st.header("Charts")
     df = pd.DataFrame(w_data)
 
-    def plot_custom_chart(df_plot, title, cols, colors):
+    def plot_custom_chart(df_plot, title, cols, colors, units=None):
         # Ensure datetime is parsed
         if not pd.api.types.is_datetime64_any_dtype(df_plot.index):
             df_plot.index = pd.to_datetime(df_plot.index)
-            
-        fig = go.Figure()
         
+        if units is None:
+            units = [''] * len(cols)
+        
+        # Build traces list, then sort by descending mean y so the highest
+        # line on the chart always appears first in the unified hover tooltip
+        traces = []
         max_val = -float('inf')
-        for col, color in zip(cols, colors):
+        for col, color, unit in zip(cols, colors, units):
             if col in df_plot.columns:
-                # Add line trace without markers, with hover info
-                fig.add_trace(go.Scatter(
-                    x=df_plot.index, 
-                    y=df_plot[col], 
-                    mode='lines', 
-                    name=col, 
-                    line=dict(color=color, width=2),
-                    hovertemplate='%{y:.1f}<extra></extra>'
+                unit_str = f' {unit}' if unit else ''
+                mean_y = df_plot[col].mean()
+                traces.append(dict(
+                    col=col, color=color, mean_y=mean_y,
+                    unit_str=unit_str, data=df_plot[col]
                 ))
                 local_max = df_plot[col].max()
                 if local_max > max_val:
                     max_val = local_max
+        
+        # Sort descending by mean value so hover label order matches visual order
+        traces.sort(key=lambda t: t['mean_y'], reverse=True)
+        
+        fig = go.Figure()
+        for t in traces:
+            fig.add_trace(go.Scatter(
+                x=df_plot.index,
+                y=t['data'],
+                mode='lines',
+                name=t['col'],
+                line=dict(color=t['color'], width=2),
+                hovertemplate=f'%{{y:.1f}}{t["unit_str"]}<extra></extra>'
+            ))
                     
-        # Y-axis padding (max >= max plot point)
-        # Plotly handles auto-scaling well, but we can force range
         y_max_range = max_val * 1.1 if max_val != -float('inf') else None
         
-        # X-axis formatting: show only 07:00 and 19:00, format: mm-dd HH:MM
         tickvals = df_plot.index[df_plot.index.hour.isin([7, 19])]
         ticktext = tickvals.strftime('%m-%d %H:%M')
         
@@ -206,10 +218,7 @@ if st.session_state.weather_data:
                 tickfont=dict(size=13),
                 title_font=dict(size=14)
             ),
-            legend=dict(
-                font=dict(size=13)
-            ),
-            # Transparent background / dark gray overall matching streamlit themes
+            legend=dict(font=dict(size=13)),
             plot_bgcolor='rgba(0,0,0,0)',
             paper_bgcolor='rgba(0,0,0,0)',
             hovermode="x unified",
@@ -219,30 +228,43 @@ if st.session_state.weather_data:
         st.plotly_chart(fig, use_container_width=True)
 
     st.subheader("Temperature & Humidity")
-    plot_custom_chart(df.set_index('datetime'), "Temperature & Humidity", ['temperature', 'humidity'], ['#EB4C4C', 'white'])
+    plot_custom_chart(df.set_index('datetime'), "Temperature & Humidity",
+        ['temperature', 'humidity'], ['#EB4C4C', 'white'],
+        units=['°C', '%'])
     
     st.subheader("Wind Speed & Gust")
-    plot_custom_chart(df.set_index('datetime'), "Wind Speed & Gust", ['wind_speed', 'wind_gust'], ['green', 'orange'])
+    plot_custom_chart(df.set_index('datetime'), "Wind Speed & Gust",
+        ['wind_speed', 'wind_gust'], ['green', 'orange'],
+        units=['knots', 'knots'])
     
     st.subheader("Rain & PoP")
     rain_cols = ['rain', 'pop'] if 'rain' in df.columns else ['pop']
-    plot_custom_chart(df.set_index('datetime'), "Rain & PoP", rain_cols, ['blue', 'purple'])
+    rain_units = ['mm/h', '%'] if 'rain' in df.columns else ['%']
+    plot_custom_chart(df.set_index('datetime'), "Rain & PoP",
+        rain_cols, ['blue', 'purple'],
+        units=rain_units)
     
     if 'cloud_cover' in df.columns:
         st.subheader("Cloud Cover")
-        plot_custom_chart(df.set_index('datetime'), "Cloud Cover", ['cloud_cover'], ['lightgray'])
+        plot_custom_chart(df.set_index('datetime'), "Cloud Cover",
+            ['cloud_cover'], ['lightgray'], units=['%'])
         
     if 'uv_index' in df.columns:
         st.subheader("UV Index")
-        plot_custom_chart(df.set_index('datetime'), "UV Index", ['uv_index'], ['gold'])
+        plot_custom_chart(df.set_index('datetime'), "UV Index",
+            ['uv_index'], ['gold'], units=[''])
         
     if st.session_state.api_source == "Open-Meteo" and st.session_state.marine_data:
         df_marine = pd.DataFrame(st.session_state.marine_data)
         st.subheader("Wave & Swell Height")
-        plot_custom_chart(df_marine.set_index('datetime'), "Wave Height", ['wave_height', 'swell_wave_height'], ['dodgerblue', 'mediumblue'])
+        plot_custom_chart(df_marine.set_index('datetime'), "Wave Height",
+            ['wave_height', 'swell_wave_height'], ['dodgerblue', 'mediumblue'],
+            units=['m', 'm'])
         
         st.subheader("Wave & Swell Period")
-        plot_custom_chart(df_marine.set_index('datetime'), "Wave Period", ['wave_period', 'swell_wave_period'], ['magenta', 'gold'])
+        plot_custom_chart(df_marine.set_index('datetime'), "Wave Period",
+            ['wave_period', 'swell_wave_period'], ['magenta', 'gold'],
+            units=['s', 's'])
 
     st.markdown("---")
     st.header("Data Table")
