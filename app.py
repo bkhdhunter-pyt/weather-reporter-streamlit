@@ -76,19 +76,23 @@ st.header("Search Location")
 locations_dict = config_data.get("locations", {})
 loc_names = list(locations_dict.keys())
 
-tab1, tab2, tab3, tab4 = st.tabs(["📋 Danh sách", "🔍 Tìm kiếm", "🗺️ Bản đồ", "📍 Tọa độ"])
+if "map_clicked_lat" not in st.session_state:
+    st.session_state.map_clicked_lat = None
+    st.session_state.map_clicked_lon = None
+
+tab1, tab2, tab3, tab4 = st.tabs(["📋 Saved Locations", "🔍 Search", "🗺️ Map", "📍 Coordinates"])
 
 # ── Tab 1: Dropdown ────────────────────────────────────────────────────────────
 with tab1:
     default_loc = "Rong Doi Platform - Block 11.2"
     default_idx = loc_names.index(default_loc) if default_loc in loc_names else 0
-    selected_from_list = st.selectbox("Chọn địa điểm:", loc_names, index=default_idx)
-    if st.button("Chọn địa điểm này", key="btn_list"):
+    selected_from_list = st.selectbox("Select location:", loc_names, index=default_idx)
+    if st.button("Use this location", key="btn_list"):
         coords = locations_dict[selected_from_list]['coords']
         st.session_state.selected_lat = coords[0]
         st.session_state.selected_lon = coords[1]
         st.session_state.selected_location_name = selected_from_list
-        st.success(f"✅ Đã chọn: **{selected_from_list}** ({coords[0]:.4f}, {coords[1]:.4f})")
+        st.success(f"✅ Selected: **{selected_from_list}** ({coords[0]:.4f}, {coords[1]:.4f})")
 
     # Auto-select default on very first load (no location chosen yet)
     if st.session_state.selected_lat is None:
@@ -99,23 +103,23 @@ with tab1:
 
 # ── Tab 2: Geocoding Search ────────────────────────────────────────────────────
 with tab2:
-    search_query = st.text_input("Nhập tên địa điểm:", placeholder="Ví dụ: Vũng Tàu, Hà Nội, Ho Chi Minh City...")
-    if st.button("🔍 Tìm kiếm", key="btn_search"):
+    search_query = st.text_input("Enter location name:", placeholder="e.g. Vung Tau, Ha Noi, Ho Chi Minh City...")
+    if st.button("🔍 Search", key="btn_search"):
         if search_query.strip():
-            with st.spinner("Đang tìm kiếm..."):
+            with st.spinner("Searching..."):
                 try:
                     resp = requests.get(
                         "https://geocoding-api.open-meteo.com/v1/search",
-                        params={"name": search_query, "count": 5, "language": "vi", "format": "json"},
+                        params={"name": search_query, "count": 5, "language": "en", "format": "json"},
                         timeout=8
                     )
                     data = resp.json()
                     st.session_state.geocode_results = data.get("results", [])
                 except Exception as e:
-                    st.error(f"Lỗi tìm kiếm: {e}")
+                    st.error(f"Search error: {e}")
                     st.session_state.geocode_results = []
         else:
-            st.warning("Vui lòng nhập tên địa điểm.")
+            st.warning("Please enter a location name.")
 
     if st.session_state.geocode_results:
         options = [
@@ -123,43 +127,57 @@ with tab2:
             f"({r['latitude']:.4f}, {r['longitude']:.4f})"
             for r in st.session_state.geocode_results
         ]
-        chosen_idx = st.radio("Chọn kết quả phù hợp:", range(len(options)), format_func=lambda i: options[i])
-        if st.button("✅ Xác nhận địa điểm này", key="btn_confirm_search"):
+        chosen_idx = st.radio("Select a result:", range(len(options)), format_func=lambda i: options[i])
+        if st.button("✅ Confirm this location", key="btn_confirm_search"):
             r = st.session_state.geocode_results[chosen_idx]
             st.session_state.selected_lat = r["latitude"]
             st.session_state.selected_lon = r["longitude"]
             place_name = f"{r.get('name','')}, {r.get('country','')}"
             st.session_state.selected_location_name = place_name
-            st.success(f"✅ Đã chọn: **{place_name}** ({r['latitude']:.4f}, {r['longitude']:.4f})")
+            st.success(f"✅ Selected: **{place_name}** ({r['latitude']:.4f}, {r['longitude']:.4f})")
 
 # ── Tab 3: Interactive Map ─────────────────────────────────────────────────────
 with tab3:
-    st.caption("Click vào bất kỳ điểm nào trên bản đồ để lấy tọa độ địa điểm.")
+    st.caption("Click anywhere on the map to get coordinates. Then confirm to use that location.")
     init_lat = st.session_state.selected_lat or 10.8
     init_lon = st.session_state.selected_lon or 106.7
     m = folium.Map(location=[init_lat, init_lon], zoom_start=6, tiles="OpenStreetMap")
-    # Show current selection marker if exists
+    # Red marker = currently confirmed location
     if st.session_state.selected_lat:
         folium.Marker(
             [st.session_state.selected_lat, st.session_state.selected_lon],
-            tooltip=st.session_state.selected_location_name or "Đã chọn",
-            icon=folium.Icon(color="red", icon="info-sign")
+            tooltip=f"✅ Confirmed: {st.session_state.selected_location_name or 'Selected location'}",
+            icon=folium.Icon(color="red", icon="ok-sign")
+        ).add_to(m)
+    # Blue marker = last clicked point (pending confirmation)
+    if st.session_state.map_clicked_lat:
+        folium.Marker(
+            [st.session_state.map_clicked_lat, st.session_state.map_clicked_lon],
+            tooltip=f"📍 Clicked: {st.session_state.map_clicked_lat}, {st.session_state.map_clicked_lon}",
+            icon=folium.Icon(color="blue", icon="map-marker")
         ).add_to(m)
     map_result = st_folium(m, height=420, width="100%", returned_objects=["last_clicked"])
     if map_result and map_result.get("last_clicked"):
         clicked = map_result["last_clicked"]
         clat = round(clicked["lat"], 5)
         clon = round(clicked["lng"], 5)
-        st.info(f"📍 Vị trí vừa click: **{clat}, {clon}**")
-        if st.button(f"✅ Dùng tọa độ này ({clat}, {clon})", key="btn_confirm_map"):
+        # Persist the clicked point so the blue marker survives reruns
+        if (clat, clon) != (st.session_state.map_clicked_lat, st.session_state.map_clicked_lon):
+            st.session_state.map_clicked_lat = clat
+            st.session_state.map_clicked_lon = clon
+            st.rerun()
+        st.info(f"📍 Clicked position: **{clat}, {clon}**")
+        if st.button(f"✅ Use this location ({clat}, {clon})", key="btn_confirm_map"):
             st.session_state.selected_lat = clat
             st.session_state.selected_lon = clon
-            st.session_state.selected_location_name = f"Tuỳ chỉnh ({clat}, {clon})"
-            st.success("✅ Đã lưu tọa độ từ bản đồ!")
+            st.session_state.selected_location_name = f"Custom ({clat}, {clon})"
+            st.session_state.map_clicked_lat = None
+            st.session_state.map_clicked_lon = None
+            st.success("✅ Location saved from map!")
 
 # ── Tab 4: Manual Coordinates ──────────────────────────────────────────────────
 with tab4:
-    st.caption("Nhập tọa độ thủ công (phù hợp cho các địa điểm offshore hoặc kỹ thuật).")
+    st.caption("Enter coordinates manually — useful for offshore platforms or technical locations.")
     mc1, mc2 = st.columns(2)
     with mc1:
         manual_lat = st.number_input("Latitude:", min_value=-90.0, max_value=90.0,
@@ -169,18 +187,18 @@ with tab4:
         manual_lon = st.number_input("Longitude:", min_value=-180.0, max_value=180.0,
                                      value=float(st.session_state.selected_lon or 106.7),
                                      step=0.0001, format="%.5f")
-    manual_name = st.text_input("Tên địa điểm (tuỳ chọn):", placeholder="Ví dụ: Platform X, Block Y...")
-    if st.button("✅ Xác nhận tọa độ", key="btn_manual"):
+    manual_name = st.text_input("Location name (optional):", placeholder="e.g. Platform X, Block Y...")
+    if st.button("✅ Confirm coordinates", key="btn_manual"):
         st.session_state.selected_lat = manual_lat
         st.session_state.selected_lon = manual_lon
         st.session_state.selected_location_name = manual_name.strip() or f"({manual_lat:.5f}, {manual_lon:.5f})"
-        st.success(f"✅ Đã xác nhận: **{st.session_state.selected_location_name}**")
+        st.success(f"✅ Confirmed: **{st.session_state.selected_location_name}**")
 
 # ── Confirmed location display + Fetch ────────────────────────────────────────
 st.markdown("---")
 if st.session_state.selected_lat:
     st.markdown(
-        f"📍 **Địa điểm đã chọn:** {st.session_state.selected_location_name} "
+        f"📍 **Selected location:** {st.session_state.selected_location_name} "
         f"| Lat: `{st.session_state.selected_lat}` | Lon: `{st.session_state.selected_lon}`"
     )
 
