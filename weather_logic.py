@@ -103,18 +103,17 @@ def user_data_path(relative_path):
 
 def load_config():
     cfg_path = user_data_path('config.json')
-    try:
-        with open(cfg_path, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError) as e:
-        print(f"Error loading config.json: {e}")
-        default_config = {"api_key_openweathermap": "YOUR_API_KEY_HERE",
-                          "dashboard_locations": [], "locations": {}}
-        with open(cfg_path, 'w', encoding='utf-8') as f:
-            json.dump(default_config, f, indent=2)
-        print(
-            "Config Created: config.json was not found. A default file has been created. Please edit it with your API key.")
-        return default_config
+    if os.path.exists(cfg_path):
+        try:
+            with open(cfg_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            print(f"Error loading config.json: {e}")
+    
+    # Return default empty config if file doesn't exist or is invalid
+    # Avoid creating/writing the file automatically to support read-only environments
+    return {"api_key_openweathermap": "YOUR_API_KEY_HERE",
+            "dashboard_locations": [], "locations": {}}
 
 class WeatherLogic:
     def __init__(self, api_key):

@@ -47,12 +47,24 @@ st.title("Weather Reporter")
 @st.cache_resource
 def get_weather_logic():
     api_key = os.environ.get("OPENWEATHERMAP_API_KEY")
-    config = load_config()
+    config = load_config()          # may be empty/absent on cloud (config.json gitignored)
     if not api_key:
         api_key = config.get("api_keys", {}).get("openweathermap", "")
     return WeatherLogic(api_key), config
 
+@st.cache_data
+def load_locations():
+    """Load location list from locations.json (committed to git — no secrets inside)."""
+    import json
+    loc_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "locations.json")
+    if os.path.exists(loc_file):
+        with open(loc_file, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {"locations": {}, "default_location": "", "dashboard_locations": []}
+
 logic, config_data = get_weather_logic()
+locations_data = load_locations()
+
 
 # ─── Session state init ───────────────────────────────────────────────────────
 if "weather_data" not in st.session_state:
@@ -73,7 +85,7 @@ if "geocode_results" not in st.session_state:
 # ─── Location Section ─────────────────────────────────────────────────────────
 st.header("Search Location")
 
-locations_dict = config_data.get("locations", {})
+locations_dict = locations_data.get("locations", {})
 loc_names = list(locations_dict.keys())
 
 if "map_clicked_lat" not in st.session_state:
@@ -84,7 +96,7 @@ tab1, tab2, tab3, tab4 = st.tabs(["📋 Saved Locations", "🔍 Search", "🗺�
 
 # ── Tab 1: Dropdown ────────────────────────────────────────────────────────────
 with tab1:
-    default_loc = "Rong Doi Platform - Block 11.2"
+    default_loc = locations_data.get("default_location", loc_names[0] if loc_names else "")
     default_idx = loc_names.index(default_loc) if default_loc in loc_names else 0
     selected_from_list = st.selectbox("Select location:", loc_names, index=default_idx)
     if st.button("Use this location", key="btn_list"):
@@ -95,11 +107,12 @@ with tab1:
         st.success(f"✅ Selected: **{selected_from_list}** ({coords[0]:.4f}, {coords[1]:.4f})")
 
     # Auto-select default on very first load (no location chosen yet)
-    if st.session_state.selected_lat is None:
-        coords = locations_dict[default_loc]['coords']
+    if st.session_state.selected_lat is None and loc_names:
+        fallback = default_loc if default_loc in locations_dict else loc_names[0]
+        coords = locations_dict[fallback]['coords']
         st.session_state.selected_lat = coords[0]
         st.session_state.selected_lon = coords[1]
-        st.session_state.selected_location_name = default_loc
+        st.session_state.selected_location_name = fallback
 
 # ── Tab 2: Geocoding Search ────────────────────────────────────────────────────
 with tab2:

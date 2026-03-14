@@ -1,0 +1,57 @@
+{
+  "default_location": "Rong Doi Platform - Block 11.2",
+  "dashboard_locations": [
+    "Rong Doi Platform - Block 11.2",
+    "Ba Dinh - Ha Noi",
+    "Phu Yen",
+    "Hiep Binh Chanh"
+  ],
+  "locations": {
+    "Lan Tay Platform - Block 06.1": {
+      "pdf_name": "Lan Tay Platform - Block 06.1",
+      "coords": [7.5783, 108.8694]
+    },
+    "Rong Doi Platform - Block 11.2": {
+      "pdf_name": "Rong Doi Platform - Block 11.2",
+      "coords": [7.7925, 108.2021]
+    },
+    "An Phu Office - An Khanh Ward": {
+      "pdf_name": "An Phu Office - An Khanh Ward",
+      "coords": [10.8094, 106.7366]
+    },
+    "Vung Tau Airport - Vung Tau": {
+      "pdf_name": "Vung Tau Airport - Vung Tau",
+      "coords": [10.376, 107.0932]
+    },
+    "Ba Dinh - Ha Noi": {
+      "pdf_name": "Ba Dinh - Ha Noi",
+      "coords": [21.0368, 105.8346]
+    },
+    "Zarubezhneft HO - Moscow": {
+      "pdf_name": "Zarubezhneft HO - Moscow",
+      "coords": [55.7596, 37.6374]
+    },
+    "Thao Dien Pitch": {
+      "pdf_name": "Thao Dien Pitch",
+      "coords": [10.8068, 106.7387]
+    },
+    "Phu Yen": {
+      "pdf_name": "Phu Yen",
+      "coords": [13.2119, 109.1786]
+    },
+    "Hiep Binh Chanh": {
+      "pdf_name": "Hiep Binh Chanh",
+      "coords": [10.8316, 106.7326]
+    },
+    "SV-DN": {
+      "pdf_name": "SV-DN",
+      "coords": [7.6733, 107.8768],
+      "marine_forecast": true
+    },
+    "Binh Loi": {
+      "pdf_name": "Binh Loi",
+      "coords": [10.83669, 106.70253],
+      "marine_forecast": false
+    }
+  }
+}
