@@ -14,9 +14,17 @@ from streamlit_folium import st_folium
 
 load_dotenv()
 
+def resource_path(relative_path):
+    """Get absolute path to resource, works for local and Streamlit Cloud."""
+    base_path = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(base_path, relative_path)
+
 def get_base64_image(image_path):
-    with open(image_path, "rb") as img_file:
-        return base64.b64encode(img_file.read()).decode()
+    abs_path = resource_path(image_path)
+    if os.path.exists(abs_path):
+        with open(abs_path, "rb") as img_file:
+            return base64.b64encode(img_file.read()).decode()
+    return ""
 
 st.set_page_config(page_title="Weather Reporter", layout="wide")
 

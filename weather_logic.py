@@ -732,8 +732,8 @@ class WeatherLogic:
             elements.append(Spacer(1, 0.2*inch))
 
             # Add location image if available (for dashboard locations)
-            image_path = os.path.join(
-                "Pictures", ui_location_name.replace(" ", "_") + ".png")
+            image_path = resource_path(os.path.join(
+                "Pictures", ui_location_name.replace(" ", "_") + ".png"))
             if os.path.exists(image_path):
                 try:
                     img = Image(image_path, width=5.6*inch, height=2.8*inch)
