@@ -156,24 +156,46 @@ with tab3:
             tooltip=f"📍 Clicked: {st.session_state.map_clicked_lat}, {st.session_state.map_clicked_lon}",
             icon=folium.Icon(color="blue", icon="map-marker")
         ).add_to(m)
+
     map_result = st_folium(m, height=420, width="100%", returned_objects=["last_clicked"])
+
+    # ── Detect new click → persist in session_state → rerun to show blue marker ──
     if map_result and map_result.get("last_clicked"):
         clicked = map_result["last_clicked"]
         clat = round(clicked["lat"], 5)
         clon = round(clicked["lng"], 5)
-        # Persist the clicked point so the blue marker survives reruns
         if (clat, clon) != (st.session_state.map_clicked_lat, st.session_state.map_clicked_lon):
             st.session_state.map_clicked_lat = clat
             st.session_state.map_clicked_lon = clon
             st.rerun()
-        st.info(f"📍 Clicked position: **{clat}, {clon}**")
-        if st.button(f"✅ Use this location ({clat}, {clon})", key="btn_confirm_map"):
-            st.session_state.selected_lat = clat
-            st.session_state.selected_lon = clon
-            st.session_state.selected_location_name = f"Custom ({clat}, {clon})"
-            st.session_state.map_clicked_lat = None
-            st.session_state.map_clicked_lon = None
-            st.success("✅ Location saved from map!")
+
+    # ── Coordinate summary + confirm button (reads from session_state, survives rerun) ──
+    if st.session_state.map_clicked_lat:
+        clat = st.session_state.map_clicked_lat
+        clon = st.session_state.map_clicked_lon
+        st.markdown("---")
+        col_info, col_btn = st.columns([3, 1])
+        with col_info:
+            st.info(
+                f"📍 **Clicked:** Lat `{clat}` | Lon `{clon}`\n\n"
+                f"✅ **Confirmed:** {st.session_state.selected_location_name or '—'} "
+                f"(Lat `{st.session_state.selected_lat}`, Lon `{st.session_state.selected_lon}`)"
+            )
+        with col_btn:
+            if st.button(f"✅ Use this location", key="btn_confirm_map"):
+                st.session_state.selected_lat = clat
+                st.session_state.selected_lon = clon
+                st.session_state.selected_location_name = f"Custom ({clat}, {clon})"
+                st.session_state.map_clicked_lat = None
+                st.session_state.map_clicked_lon = None
+                st.success("✅ Location saved from map!")
+    elif st.session_state.selected_lat:
+        st.markdown("---")
+        st.info(
+            f"✅ **Confirmed location:** {st.session_state.selected_location_name} "
+            f"| Lat `{st.session_state.selected_lat}` | Lon `{st.session_state.selected_lon}`"
+        )
+
 
 # ── Tab 4: Manual Coordinates ──────────────────────────────────────────────────
 with tab4:
