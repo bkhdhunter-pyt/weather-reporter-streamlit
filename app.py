@@ -6,10 +6,14 @@ import io
 import datetime
 import math
 from dotenv import load_dotenv
-import os
 import plotly.graph_objects as go
+import base64
 
 load_dotenv()
+
+def get_base64_image(image_path):
+    with open(image_path, "rb") as img_file:
+        return base64.b64encode(img_file.read()).decode()
 
 st.set_page_config(page_title="Weather Reporter", layout="wide")
 
@@ -21,13 +25,13 @@ st.markdown("""
 }
 
 /* Custom Button Styles */
-div.stButton > button {
+div.stButton > button, div.stDownloadButton > button {
     background: linear-gradient(90deg, #0072ff, #00c6ff);
     color: white;
     border: 1px solid transparent;
     transition: 0.3s;
 }
-div.stButton > button:hover {
+div.stButton > button:hover, div.stDownloadButton > button:hover {
     background: transparent !important;
     border: 1px solid #00c6ff !important;
     color: white !important;
@@ -123,10 +127,12 @@ if st.session_state.weather_data:
     
     colA, colB, colC, colD = st.columns(4)
     
-    colA.markdown("<div style='text-align: center; font-size: 70px; margin-bottom: -15px;'>🌡️</div>", unsafe_allow_html=True)
+    temp_b64 = get_base64_image("icons/temp.png")
+    colA.markdown(f"<div style='text-align: center; margin-bottom: -15px;'><img src='data:image/png;base64,{temp_b64}' width='55'></div>", unsafe_allow_html=True)
     colA.metric("Temperature", f"{temp_min} - {temp_max}")
     
-    colB.markdown("<div style='text-align: center; font-size: 70px; margin-bottom: -15px;'>💨</div>", unsafe_allow_html=True)
+    wind_b64 = get_base64_image("icons/wind.png")
+    colB.markdown(f"<div style='text-align: center; margin-bottom: -15px;'><img src='data:image/png;base64,{wind_b64}' width='55'></div>", unsafe_allow_html=True)
     colB.metric("Wind Speed", f"{wind_min} - {wind_max}")
     if st.session_state.api_source == "Open-Meteo":
         rain_vals = [item.get('rain') for item in w_data if isinstance(item.get('rain'), (int, float))]
@@ -134,10 +140,12 @@ if st.session_state.weather_data:
         rain_max = f"{max(rain_vals):.1f} mm/h" if rain_vals else "N/A"
         uv_max = f"{max(uv_vals):.1f}" if uv_vals else "N/A"
         
-        colC.markdown("<div style='text-align: center; font-size: 70px; margin-bottom: -15px;'>🌧️</div>", unsafe_allow_html=True)
+        rain_b64 = get_base64_image("icons/rain.png")
+        colC.markdown(f"<div style='text-align: center; margin-bottom: -15px;'><img src='data:image/png;base64,{rain_b64}' width='55'></div>", unsafe_allow_html=True)
         colC.metric("Rain (Max)", rain_max)
         
-        colD.markdown("<div style='text-align: center; font-size: 70px; margin-bottom: -15px;'>☀️</div>", unsafe_allow_html=True)
+        uv_b64 = get_base64_image("icons/UV.png")
+        colD.markdown(f"<div style='text-align: center; margin-bottom: -15px;'><img src='data:image/png;base64,{uv_b64}' width='55'></div>", unsafe_allow_html=True)
         colD.metric("UV Index (Max)", uv_max)
     
     current_time_str = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
